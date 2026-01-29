@@ -1,0 +1,396 @@
+:root {
+    --bg-gray: #f0f0f0;
+    --paper-white: #ffffff;
+    --text-black: #333333;
+    --border-gray: #cccccc;
+    --blue-accent: #2b579a;
+    /* Word風の青 */
+    --grid-line: #e5f1fb;
+
+    /* 1行30文字の設定（厳密に固定） */
+    --char-size: 1.25rem;
+    /* 文字サイズ（MS Gothicなら1文字＝1.25rem程度の幅） */
+    --line-height: 2rem;
+    /* 行高（マス目の高さ） */
+    --chars-per-line: 30;
+    --paper-padding: 1rem;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-gray);
+    color: var(--text-black);
+    font-family: "MS Gothic", "monospace";
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.toolbar {
+    background-color: var(--blue-accent);
+    color: white;
+    padding: 0.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+}
+
+.tool-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+#level-select {
+    padding: 0.3rem;
+    border-radius: 4px;
+    border: none;
+}
+
+#start-btn {
+    background-color: white;
+    color: var(--blue-accent);
+    border: none;
+    padding: 0.4rem 1.2rem;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#start-btn:hover {
+    background-color: #eee;
+}
+
+#finish-btn {
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    padding: 0.4rem 1.2rem;
+    margin-left: 0.5rem;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#finish-btn:disabled {
+    background-color: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+}
+
+#finish-btn:hover:not(:disabled) {
+    background-color: #f57c00;
+}
+
+.workspace {
+    flex: 1;
+    display: flex;
+    padding: 2rem;
+    gap: 2rem;
+    overflow: hidden;
+    justify-content: center;
+}
+
+.workspace.layout-reverse {
+    flex-direction: row-reverse;
+}
+
+.paper-container {
+    flex: 0 0 calc(var(--char-size) * var(--chars-per-line) + var(--paper-padding) * 2 + 20px);
+    display: flex;
+    flex-direction: column;
+}
+
+.paper-header {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    background: #e1e1e1;
+    padding: 2px 10px;
+    border-radius: 4px 4px 0 0;
+}
+
+.paper {
+    background-color: var(--paper-white);
+    border: 1px solid var(--border-gray);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    height: 100%;
+    /* 共通の設定 */
+    font-size: var(--char-size);
+    line-height: var(--line-height);
+    font-family: "MS Gothic", "monospace";
+    letter-spacing: 0;
+    overflow-y: auto;
+    position: relative;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.sample-paper {
+    padding: 0 var(--paper-padding) var(--paper-padding) var(--paper-padding);
+    user-select: none;
+    /* テキスト選択を禁止 */
+}
+
+.input-wrapper {
+    position: relative;
+    padding: 0;
+}
+
+.grid-background {
+    position: absolute;
+    top: 0;
+    left: var(--paper-padding);
+    right: var(--paper-padding);
+    bottom: var(--paper-padding);
+    /* マス目（グリッド） */
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: var(--char-size) var(--line-height);
+    background-position: 0 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.typing-textarea {
+    width: 100%;
+    height: 100%;
+    border: none;
+    resize: none;
+    padding: 0 var(--paper-padding) var(--paper-padding) var(--paper-padding);
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
+    letter-spacing: inherit;
+    background: transparent;
+    position: relative;
+    z-index: 2;
+    outline: none;
+    display: block;
+}
+
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.sample-content {
+    position: relative;
+    z-index: 2;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.grade-char {
+    display: inline-block;
+    width: var(--char-size);
+    text-align: center;
+}
+
+.grade-correct {
+    color: #333;
+    /* 正解は通常色 */
+}
+
+.grade-error {
+    color: #ff0000;
+    /* 不正解は赤色 */
+    background-color: #ffe0e0;
+    font-weight: bold;
+}
+
+.grading-display {
+    position: absolute;
+    top: 0;
+    left: var(--paper-padding);
+    right: var(--paper-padding);
+    bottom: var(--paper-padding);
+    z-index: 3;
+    pointer-events: none;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.button-group {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+#record-btn {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 0.5rem 2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#record-btn:hover {
+    background: #45a049;
+}
+
+#record-btn:disabled {
+    background: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.history-card {
+    width: 800px !important;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+}
+
+.chart-container {
+    width: 100%;
+    height: 250px;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.history-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    padding: 0.5rem;
+    text-align: left;
+}
+
+.history-card-item {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
+}
+
+.history-card-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.history-date {
+    font-size: 0.75rem;
+    color: #888;
+    margin-bottom: 0.5rem;
+}
+
+.history-level-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--blue-accent);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    margin-bottom: 0.8rem;
+}
+
+.history-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.stat-label {
+    color: #666;
+}
+
+.stat-value {
+    font-weight: bold;
+    text-align: right;
+}
+
+.stat-error {
+    color: #f44336;
+}
+
+#history-btn {
+    background: #607d8b;
+    color: white;
+    border: none;
+    padding: 0.4rem 1rem;
+    margin-left: 0.5rem;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#history-btn:hover {
+    background: #455a64;
+}
+
+#close-history-btn {
+    background: var(--blue-accent);
+    color: white;
+    border: none;
+    padding: 0.5rem 2rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.result-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    text-align: center;
+    width: 300px;
+}
+
+#result-stats {
+    margin: 1rem 0;
+    text-align: left;
+    line-height: 2;
+}
+
+#restart-btn {
+    background: var(--blue-accent);
+    color: white;
+    border: none;
+    padding: 0.5rem 2rem;
+    border-radius: 4px;
+    cursor: pointer;
+}

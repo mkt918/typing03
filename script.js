@@ -1,0 +1,376 @@
+class WordTypingApp {
+    constructor() {
+        this.currentLevel = "2";
+        this.isTyping = false;
+        this.startTime = null;
+        this.timerInterval = null;
+        this.targetChars = 0;
+        this.limitSeconds = 600; // 10分
+        this.history = JSON.parse(localStorage.getItem('typing_history') || '[]');
+        this.chart = null;
+
+        this.initDOMElements();
+        this.initEventListeners();
+        this.loadLevel();
+    }
+
+    initDOMElements() {
+        this.elLevelSelect = document.getElementById('level-select');
+        this.elLayoutSelect = document.getElementById('layout-select');
+        this.elStartBtn = document.getElementById('start-btn');
+        this.elFinishBtn = document.getElementById('finish-btn');
+        this.elHistoryBtn = document.getElementById('history-btn');
+        this.elQuitBtn = document.getElementById('quit-btn');
+
+        this.elSampleText = document.getElementById('sample-text');
+        this.elTypingInput = document.getElementById('typing-input');
+        this.elCharCount = document.getElementById('char-count');
+        this.elTargetCount = document.getElementById('target-count');
+        this.elTimer = document.getElementById('timer');
+
+        this.elResultOverlay = document.getElementById('result-overlay');
+        this.elResultStats = document.getElementById('result-stats');
+        this.elRestartBtn = document.getElementById('restart-btn');
+        this.elRecordBtn = document.getElementById('record-btn');
+
+        this.elHistoryOverlay = document.getElementById('history-overlay');
+        this.elHistoryList = document.getElementById('history-list');
+        this.elCloseHistoryBtn = document.getElementById('close-history-btn');
+        this.elClearHistoryBtn = document.getElementById('clear-history-btn');
+
+        this.elWorkspace = document.querySelector('.workspace');
+    }
+
+    initEventListeners() {
+        this.elLevelSelect.addEventListener('change', (e) => {
+            this.currentLevel = e.target.value;
+            this.loadLevel();
+        });
+
+        this.elLayoutSelect.addEventListener('change', (e) => {
+            this.updateLayout(e.target.value);
+        });
+
+        this.elStartBtn.addEventListener('click', () => this.startPractice());
+        this.elFinishBtn.addEventListener('click', () => this.finishPractice());
+        this.elRestartBtn.addEventListener('click', () => this.resumeForCorrection());
+        this.elRecordBtn.addEventListener('click', () => this.saveResult());
+        this.elQuitBtn.addEventListener('click', () => this.quitPractice());
+
+        this.elHistoryBtn.addEventListener('click', () => this.showHistory());
+        this.elCloseHistoryBtn.addEventListener('click', () => this.elHistoryOverlay.classList.add('hidden'));
+        this.elClearHistoryBtn.addEventListener('click', () => this.clearHistory());
+
+        this.elTypingInput.addEventListener('input', () => this.handleInput());
+
+        // コピペ・右クリック禁止（マウス・メニュー操作）
+        const preventAction = (e) => {
+            e.preventDefault();
+            console.log('Action prevented:', e.type);
+        };
+        ['copy', 'paste', 'cut', 'contextmenu'].forEach(event => {
+            this.elTypingInput.addEventListener(event, preventAction);
+            this.elSampleText.addEventListener(event, preventAction);
+        });
+
+        this.elTypingInput.addEventListener('keydown', (e) => {
+            // ショートカットキー封殺 (Ctrl+C, V, X, A)
+            if (e.ctrlKey || e.metaKey) {
+                const forbiddenKeys = ['c', 'v', 'x', 'a'];
+                if (forbiddenKeys.includes(e.key.toLowerCase())) {
+                    e.preventDefault();
+                    console.log('Shortcut key prevented:', e.key);
+                    return;
+                }
+            }
+
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.elTypingInput.selectionStart;
+                const end = this.elTypingInput.selectionEnd;
+                this.elTypingInput.value = this.elTypingInput.value.substring(0, start) + "　" + this.elTypingInput.value.substring(end);
+                this.elTypingInput.selectionStart = this.elTypingInput.selectionEnd = start + 1;
+                this.handleInput();
+            }
+        });
+    }
+
+    updateLayout(layout) {
+        if (layout === 'right') {
+            this.elWorkspace.classList.add('layout-reverse');
+        } else {
+            this.elWorkspace.classList.remove('layout-reverse');
+        }
+    }
+
+    loadLevel() {
+        const data = LEVEL_DATA[this.currentLevel];
+        this.targetChars = data.text.length; // お手本文書の実際の文字数を使用
+        this.elTargetCount.textContent = this.targetChars;
+
+        this.elSampleText.innerHTML = `
+            <div class="grid-background"></div>
+            <div class="sample-content">${data.text}</div>
+        `;
+
+        this.resetPractice();
+    }
+
+    startPractice() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+
+        this.elResultOverlay.classList.add('hidden');
+        this.elHistoryOverlay.classList.add('hidden');
+        this.elTypingInput.value = "";
+        this.elTypingInput.style.opacity = "1";
+        this.elCharCount.textContent = "0";
+        this.elTimer.textContent = "10:00";
+
+        this.startTime = Date.now();
+        this.isTyping = false;
+
+        this.elTypingInput.focus();
+        this.elStartBtn.disabled = true;
+        this.elFinishBtn.disabled = false;
+        this.elQuitBtn.disabled = false;
+        this.elLevelSelect.disabled = true;
+        this.elLayoutSelect.disabled = true;
+
+        const oldGrade = this.elTypingInput.parentElement.querySelector('.grading-display');
+        if (oldGrade) oldGrade.remove();
+
+        setTimeout(() => {
+            this.isTyping = true;
+            this.startTime = Date.now();
+        }, 500);
+
+        this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+    }
+
+    resumeForCorrection() {
+        this.elResultOverlay.classList.add('hidden');
+        this.elTypingInput.style.opacity = "1";
+        this.elStartBtn.disabled = true;
+        this.elFinishBtn.disabled = false;
+        this.elQuitBtn.disabled = false;
+        this.elLevelSelect.disabled = true;
+        this.elLayoutSelect.disabled = true;
+
+        const oldGrade = this.elTypingInput.parentElement.querySelector('.grading-display');
+        if (oldGrade) oldGrade.remove();
+
+        this.isTyping = true;
+        this.elTypingInput.focus();
+
+        if (!this.timerInterval) {
+            this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+        }
+    }
+
+    quitPractice() {
+        if (confirm('練習を中止して初期状態に戻りますか？（入力内容は消去されます）')) {
+            this.resetPractice();
+        }
+    }
+
+    resetPractice() {
+        this.isTyping = false;
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+        this.elTypingInput.value = "";
+        this.elTypingInput.style.opacity = "1";
+        this.elCharCount.textContent = "0";
+        this.elTimer.textContent = "10:00";
+        this.elStartBtn.disabled = false;
+        this.elFinishBtn.disabled = true;
+        this.elQuitBtn.disabled = true;
+        this.elLevelSelect.disabled = false;
+        this.elLayoutSelect.disabled = false;
+        this.elResultOverlay.classList.add('hidden');
+        this.elHistoryOverlay.classList.add('hidden');
+
+        const oldGrade = this.elTypingInput.parentElement.querySelector('.grading-display');
+        if (oldGrade) oldGrade.remove();
+    }
+
+    updateTimer() {
+        if (!this.startTime) return;
+        const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+        const remaining = this.limitSeconds - elapsed;
+
+        if (remaining <= 0) {
+            this.elTimer.textContent = "00:00";
+            this.finishPractice();
+            return;
+        }
+
+        const mins = Math.floor(remaining / 60).toString().padStart(2, '0');
+        const secs = (remaining % 60).toString().padStart(2, '0');
+        this.elTimer.textContent = `${mins}:${secs}`;
+    }
+
+    handleInput() {
+        if (!this.isTyping) return;
+        const val = this.elTypingInput.value;
+        this.elCharCount.textContent = val.length;
+    }
+
+    finishPractice() {
+        this.isTyping = false;
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+
+        const elapsed = (Date.now() - this.startTime) / 1000;
+        const timeInMinutes = elapsed / 60;
+        const inputText = this.elTypingInput.value;
+        const sampleText = LEVEL_DATA[this.currentLevel].text;
+
+        const gradeDisplay = document.createElement('div');
+        gradeDisplay.className = "grading-display";
+
+        let errors = 0;
+        const maxLength = Math.max(sampleText.length, inputText.length);
+
+        for (let i = 0; i < maxLength; i++) {
+            const span = document.createElement('span');
+            const sChar = sampleText[i] || "";
+            const iChar = inputText[i] || "";
+
+            if (iChar === "") {
+                span.textContent = "";
+            } else if (iChar === sChar) {
+                span.textContent = iChar;
+                span.className = "grade-char grade-correct";
+            } else {
+                span.textContent = iChar;
+                span.className = "grade-char grade-error";
+                errors++;
+            }
+            gradeDisplay.appendChild(span);
+        }
+
+        this.elTypingInput.style.opacity = "1";
+        this.elTypingInput.parentElement.appendChild(gradeDisplay);
+
+        const speed = (inputText.length / (timeInMinutes > 0 ? timeInMinutes : 1 / 60)).toFixed(1);
+
+        const usedMins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const usedSecs = Math.floor(elapsed % 60).toString().padStart(2, '0');
+
+        this.elResultStats.innerHTML = `
+            <div>経過時間: ${usedMins}:${usedSecs}</div>
+            <div>入力文字数: ${inputText.length} 文字</div>
+            <div>入力速度: ${speed} 文字/分</div>
+            <div style="color: red; font-weight: bold;">誤字数: ${errors} 文字</div>
+        `;
+
+        this.currentResult = {
+            level: this.currentLevel,
+            timeLabel: `${usedMins}:${usedSecs}`,
+            timeSeconds: elapsed,
+            chars: inputText.length,
+            speed: parseFloat(speed),
+            errors: errors,
+            date: new Date().toLocaleString()
+        };
+
+        this.elResultOverlay.classList.remove('hidden');
+        this.elFinishBtn.disabled = true;
+        this.elQuitBtn.disabled = true; // 採点後は無効（リセット/修正で制御）
+        this.elStartBtn.disabled = false;
+        this.elRecordBtn.disabled = false;
+    }
+
+    saveResult() {
+        if (!this.currentResult) return;
+        this.history.unshift(this.currentResult);
+        localStorage.setItem('typing_history', JSON.stringify(this.history));
+        alert('結果を記録しました！');
+        this.elRecordBtn.disabled = true;
+    }
+
+    showHistory() {
+        this.elHistoryOverlay.classList.remove('hidden');
+
+        this.elHistoryList.innerHTML = this.history.length > 0
+            ? this.history.map(item => `
+                <div class="history-card-item">
+                    <div class="history-date">${item.date}</div>
+                    <div class="history-level-badge">${item.level}級</div>
+                    <div class="history-stats-grid">
+                        <span class="stat-label">速度:</span>
+                        <span class="stat-value">${item.speed} 字/分</span>
+                        <span class="stat-label">タイム:</span>
+                        <span class="stat-value">${item.timeLabel}</span>
+                        <span class="stat-label">誤字:</span>
+                        <span class="stat-value stat-error">${item.errors}</span>
+                        <span class="stat-label">文字数:</span>
+                        <span class="stat-value">${item.chars}</span>
+                    </div>
+                </div>
+            `).join('')
+            : '<div style="grid-column: 1/-1; text-align:center; padding: 2rem;">記録がありません</div>';
+
+        this.renderChart();
+    }
+
+    renderChart() {
+        const ctx = document.getElementById('speed-chart').getContext('2d');
+
+        if (this.chart) {
+            this.chart.destroy();
+        }
+
+        const recentData = [...this.history].slice(0, 10).reverse();
+
+        this.chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: recentData.map(d => d.date.split(' ')[0]),
+                datasets: [{
+                    label: '入力速度 (字/分)',
+                    data: recentData.map(d => d.speed),
+                    borderColor: '#2b579a',
+                    backgroundColor: 'rgba(43, 87, 154, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '字 / 分'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+    }
+
+    clearHistory() {
+        if (confirm('すべての履歴を消去しますか？')) {
+            this.history = [];
+            localStorage.removeItem('typing_history');
+            this.showHistory();
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new WordTypingApp();
+});

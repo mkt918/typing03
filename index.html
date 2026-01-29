@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word形式タイピング練習</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="toolbar">
+            <div class="tool-group">
+                <label for="level-select">練習レベル:</label>
+                <select id="level-select">
+                    <option value="4">4級 (100字)</option>
+                    <option value="3">3級 (310字)</option>
+                    <option value="2" selected>2級 (460字)</option>
+                    <option value="1">1級 (710字)</option>
+                </select>
+
+                <label for="layout-select">お手本配置:</label>
+                <select id="layout-select">
+                    <option value="left" selected>左に置く</option>
+                    <option value="right">右に置く</option>
+                </select>
+
+                <button id="start-btn">練習開始</button>
+                <button id="finish-btn" disabled>採点する</button>
+                <button id="history-btn">過去の記録</button>
+                <button id="quit-btn" disabled>やめる</button>
+            </div>
+            <div class="stats-group">
+                <span>文字数: <span id="char-count">0</span> / <span id="target-count">0</span></span>
+                <span>残り時間: <span id="timer">--:--</span></span>
+            </div>
+        </header>
+
+        <main class="workspace">
+            <!-- 左側：お手本表示 -->
+            <section class="paper-container">
+                <div class="paper-header">お手本文章 (30字/行)</div>
+                <div id="sample-text" class="paper sample-paper">
+                    <!-- JSで30文字改行のテキストを生成 -->
+                </div>
+            </section>
+
+            <!-- 右側：入力エリア -->
+            <section class="paper-container">
+                <div class="paper-header">入力エリア (Word形式)</div>
+                <div class="paper input-wrapper">
+                    <div id="grid-background" class="grid-background"></div>
+                    <textarea id="typing-input" class="typing-textarea" spellcheck="false"
+                        placeholder="ここに文章を入力してください..."></textarea>
+                </div>
+            </section>
+        </main>
+
+        <div id="result-overlay" class="overlay hidden">
+            <div class="result-card">
+                <h2>練習終了</h2>
+                <div id="result-stats"></div>
+                <div class="button-group">
+                    <button id="restart-btn">修正する</button>
+                    <button id="record-btn">記録する</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="history-overlay" class="overlay hidden">
+            <div class="result-card history-card">
+                <h2>過去の記録</h2>
+
+                <!-- グラフエリア -->
+                <div class="chart-container">
+                    <canvas id="speed-chart"></canvas>
+                </div>
+
+                <div id="history-list" class="history-grid">
+                    <!-- 履歴カードがここに挿入される -->
+                </div>
+
+                <div class="button-group">
+                    <button id="close-history-btn">閉じる</button>
+                    <button id="clear-history-btn" style="background:#f44336">履歴を消去</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="words.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
