@@ -188,6 +188,7 @@ class WordTypingApp {
     resumeForCorrection() {
         this.elResultOverlay.classList.add('hidden');
         this.elTypingInput.style.opacity = "1";
+        this.elTypingInput.disabled = false;
         this.elStartBtn.disabled = true;
         this.elFinishBtn.disabled = false;
         this.elQuitBtn.disabled = false;
