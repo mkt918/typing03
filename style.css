@@ -329,7 +329,7 @@ button:disabled {
     top: 0;
     left: var(--paper-padding);
     right: var(--paper-padding);
-    bottom: var(--paper-padding);
+    bottom: 0;
     background-image:
         linear-gradient(var(--grid-line) 1px, transparent 1px),
         linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
