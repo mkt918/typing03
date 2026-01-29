@@ -14,12 +14,19 @@
             <div class="tool-group">
                 <label for="level-select">練習レベル:</label>
                 <select id="level-select">
-                    <option value="4">4級 (100字)</option>
-                    <option value="3">3級 (310字)</option>
-                    <option value="2" selected>2級 (460字)</option>
-                    <option value="1">1級 (710字)</option>
+                    <option value="1">1級</option>
+                    <option value="2" selected>2級</option>
+                    <option value="3">3級</option>
+                    <option value="4">4級</option>
                 </select>
-
+            </div>
+            <div id="problem-select-container">
+                <button class="problem-btn active" data-id="1">課題1</button>
+                <button class="problem-btn" data-id="2">課題2</button>
+                <button class="problem-btn" data-id="3">課題3</button>
+                <button class="problem-btn" data-id="4">課題4</button>
+            </div>
+            <div class="tool-group">
                 <label for="layout-select">お手本配置:</label>
                 <select id="layout-select">
                     <option value="left" selected>左に置く</option>
@@ -40,7 +47,7 @@
         <main class="workspace">
             <!-- 左側：お手本表示 -->
             <section class="paper-container">
-                <div class="paper-header">お手本文章 (30字/行)</div>
+                <div class="paper-header">お手本文章 (30字/行) - <span id="problem-title">読み込み中...</span></div>
                 <div id="sample-text" class="paper sample-paper">
                     <!-- JSで30文字改行のテキストを生成 -->
                 </div>

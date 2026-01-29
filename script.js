@@ -21,8 +21,11 @@ class WordTypingApp {
         this.elFinishBtn = document.getElementById('finish-btn');
         this.elHistoryBtn = document.getElementById('history-btn');
         this.elQuitBtn = document.getElementById('quit-btn');
+        this.elProblemSelectContainer = document.getElementById('problem-select-container');
+        this.elProblemBtns = document.querySelectorAll('.problem-btn');
 
         this.elSampleText = document.getElementById('sample-text');
+        this.elProblemTitle = document.getElementById('problem-title');
         this.elTypingInput = document.getElementById('typing-input');
         this.elCharCount = document.getElementById('char-count');
         this.elTargetCount = document.getElementById('target-count');
@@ -62,6 +65,13 @@ class WordTypingApp {
         this.elClearHistoryBtn.addEventListener('click', () => this.clearHistory());
 
         this.elTypingInput.addEventListener('input', () => this.handleInput());
+
+        this.elProblemBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const problemId = parseInt(e.target.dataset.id);
+                this.loadLevel(problemId);
+            });
+        });
 
         // コピペ・右クリック禁止（マウス・メニュー操作）
         const preventAction = (e) => {
@@ -103,14 +113,36 @@ class WordTypingApp {
         }
     }
 
-    loadLevel() {
-        const data = LEVEL_DATA[this.currentLevel];
-        this.targetChars = data.text.length; // お手本文書の実際の文字数を使用
+    loadLevel(problemId = null) {
+        const levelData = LEVEL_DATA[this.currentLevel];
+
+        let problem;
+        if (problemId) {
+            problem = levelData.problems.find(p => p.id === problemId);
+        } else {
+            // 指定がない場合はランダムに選択（初期化時またはレベル変更時）
+            const randomIndex = Math.floor(Math.random() * levelData.problems.length);
+            problem = levelData.problems[randomIndex];
+        }
+
+        this.currentProblemText = problem.text;
+        // 文字数カウントは改行を除外した長さ（ユーザー規定）
+        this.targetChars = problem.text.replace(/\n/g, '').length;
         this.elTargetCount.textContent = this.targetChars;
+        this.elProblemTitle.textContent = `課題${problem.id}`;
+
+        // 課題ボタンのアクティブ状態を更新
+        this.elProblemBtns.forEach(btn => {
+            if (parseInt(btn.dataset.id) === problem.id) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
 
         this.elSampleText.innerHTML = `
             <div class="grid-background"></div>
-            <div class="sample-content">${data.text}</div>
+            <div class="sample-content">${problem.text}</div>
         `;
 
         this.resetPractice();
@@ -227,7 +259,7 @@ class WordTypingApp {
         const elapsed = (Date.now() - this.startTime) / 1000;
         const timeInMinutes = elapsed / 60;
         const inputText = this.elTypingInput.value;
-        const sampleText = LEVEL_DATA[this.currentLevel].text;
+        const sampleText = this.currentProblemText;
 
         const gradeDisplay = document.createElement('div');
         gradeDisplay.className = "grading-display";
@@ -262,6 +294,7 @@ class WordTypingApp {
         const usedSecs = Math.floor(elapsed % 60).toString().padStart(2, '0');
 
         this.elResultStats.innerHTML = `
+            <div>課題: ${this.elProblemTitle.textContent}</div>
             <div>経過時間: ${usedMins}:${usedSecs}</div>
             <div>入力文字数: ${inputText.length} 文字</div>
             <div>入力速度: ${speed} 文字/分</div>
@@ -270,6 +303,7 @@ class WordTypingApp {
 
         this.currentResult = {
             level: this.currentLevel,
+            problem: this.elProblemTitle.textContent,
             timeLabel: `${usedMins}:${usedSecs}`,
             timeSeconds: elapsed,
             chars: inputText.length,
@@ -280,7 +314,7 @@ class WordTypingApp {
 
         this.elResultOverlay.classList.remove('hidden');
         this.elFinishBtn.disabled = true;
-        this.elQuitBtn.disabled = true; // 採点後は無効（リセット/修正で制御）
+        this.elQuitBtn.disabled = true;
         this.elStartBtn.disabled = false;
         this.elRecordBtn.disabled = false;
     }
@@ -300,7 +334,7 @@ class WordTypingApp {
             ? this.history.map(item => `
                 <div class="history-card-item">
                     <div class="history-date">${item.date}</div>
-                    <div class="history-level-badge">${item.level}級</div>
+                    <div class="history-level-badge">${item.level}級 / ${item.problem}</div>
                     <div class="history-stats-grid">
                         <span class="stat-label">速度:</span>
                         <span class="stat-value">${item.speed} 字/分</span>
