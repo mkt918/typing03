@@ -40,6 +40,9 @@ class WordTypingApp {
         this.elHistoryList = document.getElementById('history-list');
         this.elCloseHistoryBtn = document.getElementById('close-history-btn');
         this.elClearHistoryBtn = document.getElementById('clear-history-btn');
+        this.elCloseHistoryXBtn = document.getElementById('close-history-x-btn');
+        this.elCloseResultXBtn = document.getElementById('close-result-x-btn');
+        this.elBestStatsContainer = document.getElementById('best-stats-container');
 
         this.elWorkspace = document.querySelector('.workspace');
     }
@@ -62,6 +65,8 @@ class WordTypingApp {
 
         this.elHistoryBtn.addEventListener('click', () => this.showHistory());
         this.elCloseHistoryBtn.addEventListener('click', () => this.elHistoryOverlay.classList.add('hidden'));
+        this.elCloseHistoryXBtn.addEventListener('click', () => this.elHistoryOverlay.classList.add('hidden'));
+        this.elCloseResultXBtn.addEventListener('click', () => this.elResultOverlay.classList.add('hidden'));
         this.elClearHistoryBtn.addEventListener('click', () => this.clearHistory());
 
         this.elTypingInput.addEventListener('input', () => this.handleInput());
@@ -154,6 +159,7 @@ class WordTypingApp {
         this.elResultOverlay.classList.add('hidden');
         this.elHistoryOverlay.classList.add('hidden');
         this.elTypingInput.value = "";
+        this.elTypingInput.disabled = false;
         this.elTypingInput.style.opacity = "1";
         this.elCharCount.textContent = "0";
         this.elTimer.textContent = "10:00";
@@ -212,6 +218,7 @@ class WordTypingApp {
             this.timerInterval = null;
         }
         this.elTypingInput.value = "";
+        this.elTypingInput.disabled = true;
         this.elTypingInput.style.opacity = "1";
         this.elCharCount.textContent = "0";
         this.elTimer.textContent = "10:00";
@@ -258,20 +265,31 @@ class WordTypingApp {
 
         const elapsed = (Date.now() - this.startTime) / 1000;
         const timeInMinutes = elapsed / 60;
+        const speed10min = ((this.elTypingInput.value.length / elapsed) * 600).toFixed(0);
         const inputText = this.elTypingInput.value;
         const sampleText = this.currentProblemText;
 
         const gradeDisplay = document.createElement('div');
         gradeDisplay.className = "grading-display";
 
+        // 冒頭に2行分の改行を追加（位置調整）
+        for (let j = 0; j < 2; j++) gradeDisplay.appendChild(document.createElement('br'));
+
         let errors = 0;
         const maxLength = Math.max(sampleText.length, inputText.length);
 
         for (let i = 0; i < maxLength; i++) {
-            const span = document.createElement('span');
             const sChar = sampleText[i] || "";
             const iChar = inputText[i] || "";
 
+            // 改行の処理
+            if (sChar === "\n") {
+                const br = document.createElement('br');
+                gradeDisplay.appendChild(br);
+                continue;
+            }
+
+            const span = document.createElement('span');
             if (iChar === "") {
                 span.textContent = "";
             } else if (iChar === sChar) {
@@ -285,7 +303,7 @@ class WordTypingApp {
             gradeDisplay.appendChild(span);
         }
 
-        this.elTypingInput.style.opacity = "1";
+        this.elTypingInput.style.opacity = "0";
         this.elTypingInput.parentElement.appendChild(gradeDisplay);
 
         const speed = (inputText.length / (timeInMinutes > 0 ? timeInMinutes : 1 / 60)).toFixed(1);
@@ -298,17 +316,24 @@ class WordTypingApp {
             <div>経過時間: ${usedMins}:${usedSecs}</div>
             <div>入力文字数: ${inputText.length} 文字</div>
             <div>入力速度: ${speed} 文字/分</div>
+            <div style="font-weight: bold; color: var(--primary-color);">10分換算: ${speed10min} 文字</div>
             <div style="color: red; font-weight: bold;">誤字数: ${errors} 文字</div>
         `;
 
+        // スコア計算: 10分換算 - 誤字数
+        const score = parseInt(speed10min) - errors;
+
         this.currentResult = {
+            id: Date.now(), // 削除用のID
             level: this.currentLevel,
             problem: this.elProblemTitle.textContent,
             timeLabel: `${usedMins}:${usedSecs}`,
             timeSeconds: elapsed,
             chars: inputText.length,
             speed: parseFloat(speed),
+            speed10min: parseInt(speed10min),
             errors: errors,
+            score: score,
             date: new Date().toLocaleString()
         };
 
@@ -321,35 +346,84 @@ class WordTypingApp {
 
     saveResult() {
         if (!this.currentResult) return;
+        if (!confirm('結果を記録しますか？（記録すると入力は消えます）')) return;
+
         this.history.unshift(this.currentResult);
         localStorage.setItem('typing_history', JSON.stringify(this.history));
         alert('結果を記録しました！');
+
+        // 入力削除と初期状態へ
+        this.resetPractice();
         this.elRecordBtn.disabled = true;
     }
 
     showHistory() {
         this.elHistoryOverlay.classList.remove('hidden');
+        this.updateBestStats();
 
         this.elHistoryList.innerHTML = this.history.length > 0
-            ? this.history.map(item => `
+            ? this.history.map((item, index) => `
                 <div class="history-card-item">
+                    <button class="delete-record-btn" data-index="${index}" title="削除">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
                     <div class="history-date">${item.date}</div>
                     <div class="history-level-badge">${item.level}級 / ${item.problem}</div>
                     <div class="history-stats-grid">
                         <span class="stat-label">速度:</span>
-                        <span class="stat-value">${item.speed} 字/分</span>
-                        <span class="stat-label">タイム:</span>
-                        <span class="stat-value">${item.timeLabel}</span>
+                        <span class="stat-value">${item.speed10min || '-'} 字/10分</span>
                         <span class="stat-label">誤字:</span>
                         <span class="stat-value stat-error">${item.errors}</span>
-                        <span class="stat-label">文字数:</span>
-                        <span class="stat-value">${item.chars}</span>
+                        <span class="stat-label">スコア:</span>
+                        <span class="stat-value" style="color: var(--primary-color)">${item.score || 0}</span>
+                        <span class="stat-label">タイム:</span>
+                        <span class="stat-value">${item.timeLabel}</span>
                     </div>
                 </div>
             `).join('')
             : '<div style="grid-column: 1/-1; text-align:center; padding: 2rem;">記録がありません</div>';
 
+        // 個別削除イベント
+        this.elHistoryList.querySelectorAll('.delete-record-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.currentTarget.dataset.index);
+                this.deleteRecord(index);
+            });
+        });
+
         this.renderChart();
+    }
+
+    updateBestStats() {
+        if (this.history.length === 0) {
+            this.elBestStatsContainer.innerHTML = '';
+            return;
+        }
+
+        const sorted = [...this.history].sort((a, b) => (b.score || 0) - (a.score || 0));
+        const best3 = sorted.slice(0, 3);
+
+        this.elBestStatsContainer.innerHTML = `
+            <div class="best-stats-title">Best 3 Scores (10min Speed - Errors)</div>
+            <div class="best-stats-grid">
+                ${best3.map((item, i) => `
+                    <div class="best-item best-item-${i + 1}">
+                        <span class="best-rank">${i + 1}位 (${item.level}級)</span>
+                        <span class="best-value">${item.score || 0}</span>
+                        <span class="best-unit">pts</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    deleteRecord(index) {
+        if (!confirm('この記録を削除しますか？')) return;
+        this.history.splice(index, 1);
+        localStorage.setItem('typing_history', JSON.stringify(this.history));
+        this.showHistory();
     }
 
     renderChart() {
